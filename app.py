@@ -1,3 +1,9 @@
+app = Flask(__name__)
+app.config.from_object(Config)
+
+# Initialize database automatically on startup (required for Gunicorn/Render)
+init_db()
+
 import csv
 import io
 import re
