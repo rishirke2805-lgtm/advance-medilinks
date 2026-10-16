@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Admin Console - Advance Medilinks{% endblock %}
+
+{% block content %}
+<div class="container">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <!-- Key Metrics -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Total Registrations</div>
+      <div class="stat-value">{{ total_count }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Cities Represented</div>
+      <div class="stat-value" style="color: var(--primary);">{{ city_count }}</div>
+    </div>
+  </div>
+
+  <!-- Search & Export Toolbar -->
+  <div class="toolbar">
+    <form action="{{ url_for('admin_dashboard') }}" method="GET" class="search-form">
+      <input type="text" name="q" class="form-control" placeholder="Search by name, email, phone, or city..." value="{{ query }}">
+      <button type="submit" class="btn btn-secondary">Search</button>
+      {% if query %}
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">&#10005;</a>
+      {% endif %}
+    </form>
+
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+      <a href="{{ url_for('export_excel') }}" class="btn btn-secondary" style="color: #15803d; border-color: #bbf7d0; font-weight: 600;">
+        &#128196; Export Full DB (.xlsx)
+      </a>
+      <a href="{{ url_for('export_csv', q=query) }}" class="btn btn-primary">
+        &#128229; Export Filtered CSV
+      </a>
+    </div>
+  </div>
+
+  <!-- Data Table -->
+  <div class="table-wrapper">
+    {% if rows %}
+      <table>
+        <thead>
+          <tr>
+            <th>Ref #</th>
+            <th>Date</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>City</th>
+            <th>Notes</th>
+            <th style="text-align: right;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+            <tr>
+              <td><strong>#REG-{{ "%04d"|format(r['id']) }}</strong></td>
+              <td style="color: var(--slate-500); white-space: nowrap;">{{ r['created_at'][:16] }}</td>
+              <td><strong>{{ r['full_name'] }}</strong></td>
+              <td><a href="mailto:{{ r['email'] }}" style="color: var(--primary); text-decoration: none;">{{ r['email'] }}</a></td>
+              <td>{{ r['phone'] }}</td>
+              <td>
+                <span style="font-weight: 600; color: var(--slate-700);">{{ r['city'] or '—' }}</span>
+              </td>
+              <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ r['notes'] }}">
+                {{ r['notes'] or '—' }}
+              </td>
+              <td style="text-align: right;">
+                <form action="{{ url_for('delete_registration', reg_id=r['id']) }}" method="POST" style="display: inline;" onsubmit="return confirm('Delete registration for {{ r['full_name'] }}?');">
+                  <button type="submit" class="btn btn-danger-outline">&#128465; Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div style="padding: 3rem 1rem; text-align: center; color: var(--slate-500);">
+        <p>No registration records found.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

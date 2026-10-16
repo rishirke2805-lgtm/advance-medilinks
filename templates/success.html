@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Registration Confirmed{% endblock %}
+
+{% block content %}
+<div class="form-container">
+  <div class="card" style="text-align: center;">
+    <div style="font-size: 3rem; margin-bottom: 0.5rem;">&#9989;</div>
+    <h1 class="card-title">Registration Confirmed!</h1>
+    <p class="card-subtitle">Thank you, <strong>{{ reg['full_name'] }}</strong>. Your registration has been successfully recorded.</p>
+
+    <div style="background: var(--slate-100); border-radius: var(--radius-md); padding: 1.25rem; margin: 1.5rem 0 0.5rem 0; text-align: left; font-size: 0.9rem;">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; border-bottom: 1px solid var(--slate-200); padding-bottom: 0.5rem;">
+        <span style="color: var(--slate-500);">Reference Number</span>
+        <strong>#REG-{{ "%04d"|format(reg['id']) }}</strong>
+      </div>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+        <span style="color: var(--slate-500);">Email</span>
+        <span>{{ reg['email'] }}</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+        <span style="color: var(--slate-500);">City</span>
+        <strong>{{ reg['city'] or '—' }}</strong>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <span style="color: var(--slate-500);">Date Registered</span>
+        <span>{{ reg['created_at'] }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

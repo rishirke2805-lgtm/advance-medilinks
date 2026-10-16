@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Advance Medilinks{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="{{ url_for('register_form') }}" class="navbar-brand">
+      Advance Medilinks
+    </a>
+    <div class="navbar-links">
+      {% block nav_links %}
+      <a href="{{ url_for('register_form') }}" class="nav-link">Register</a>
+      {% endblock %}
+    </div>
+  </nav>
+
+  {% block content %}{% endblock %}
+
+  <script src="{{ url_for('static', filename='js/form.js') }}"></script>
+</body>
+</html>
