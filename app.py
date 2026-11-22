@@ -1,3 +1,4 @@
+# Initialize database automatically on startup (required for Gunicorn/Render)
 import csv
 import io
 import re
@@ -19,18 +20,23 @@ from config import Config
 from database import get_db, init_db
 
 # -----------------------------------------------------------------------------
-# 1. Initialize Application First
+# 1. Initialize Application & Database
 # -----------------------------------------------------------------------------
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Initialize database automatically on startup (required for Gunicorn/Render)
+init_db()
+
 
 # -----------------------------------------------------------------------------
 # 2. Public Form Routes
 # -----------------------------------------------------------------------------
 @app.route("/")
 def register_form():
-    """Render public event registration form."""
+    """Render public attendee details form."""
     return render_template("register.html")
+
 
 @app.route("/register", methods=["POST"])
 def submit_registration():
@@ -39,11 +45,15 @@ def submit_registration():
     email = request.form.get("email", "").strip()
     phone = request.form.get("phone", "").strip()
     city = request.form.get("city", "").strip()
-    notes = request.form.get("notes", "").strip()
+    hospital_name = request.form.get("hospital_name", "").strip()
+    specialty = request.form.get("specialty", "").strip()
 
     # Server-side validation
-    if not all([full_name, email, phone, city]):
-        flash("Please complete all required fields (Name, Email, Phone, City).", "danger")
+    if not all([full_name, email, phone, city, hospital_name, specialty]):
+        flash(
+            "Please complete all required fields (Name, Email, Phone, City, Hospital Name, Specialty).",
+            "danger",
+        )
         return redirect(url_for("register_form"))
 
     if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
@@ -52,23 +62,29 @@ def submit_registration():
 
     with get_db() as conn:
         cursor = conn.cursor()
-        # Inspect columns to support both fresh databases and existing databases
         cursor.execute("PRAGMA table_info(registrations);")
         existing_cols = [col["name"] for col in cursor.fetchall()]
 
         if "ticket_type" in existing_cols:
-            cursor.execute("""
-                INSERT INTO registrations (full_name, email, phone, city, ticket_type, notes)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (full_name, email, phone, city, "Standard", notes))
+            cursor.execute(
+                """
+                INSERT INTO registrations (full_name, email, phone, city, hospital_name, specialty, ticket_type)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (full_name, email, phone, city, hospital_name, specialty, "Standard"),
+            )
         else:
-            cursor.execute("""
-                INSERT INTO registrations (full_name, email, phone, city, notes)
-                VALUES (?, ?, ?, ?, ?)
-            """, (full_name, email, phone, city, notes))
+            cursor.execute(
+                """
+                INSERT INTO registrations (full_name, email, phone, city, hospital_name, specialty)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (full_name, email, phone, city, hospital_name, specialty),
+            )
         reg_id = cursor.lastrowid
 
     return redirect(url_for("registration_success", reg_id=reg_id))
+
 
 @app.route("/success")
 def registration_success():
@@ -86,6 +102,7 @@ def registration_success():
 
     return render_template("success.html", reg=reg)
 
+
 # -----------------------------------------------------------------------------
 # 3. Admin & Data Management Routes
 # -----------------------------------------------------------------------------
@@ -96,12 +113,11 @@ def admin_dashboard():
     conn = get_db()
 
     total_count = conn.execute("SELECT COUNT(*) AS total FROM registrations").fetchone()["total"]
-    
-    # Calculate unique cities count
+
     cursor = conn.cursor()
     cursor.execute("PRAGMA table_info(registrations);")
     cols = [c["name"] for c in cursor.fetchall()]
-    
+
     if "city" in cols:
         city_count = conn.execute(
             "SELECT COUNT(DISTINCT city) AS total_cities FROM registrations WHERE city != ''"
@@ -111,18 +127,19 @@ def admin_dashboard():
 
     if query:
         pattern = f"%{query}%"
-        if "city" in cols:
-            rows = conn.execute("""
-                SELECT * FROM registrations
-                WHERE full_name LIKE ? OR email LIKE ? OR phone LIKE ? OR city LIKE ? OR notes LIKE ?
-                ORDER BY created_at DESC
-            """, (pattern, pattern, pattern, pattern, pattern)).fetchall()
-        else:
-            rows = conn.execute("""
-                SELECT * FROM registrations
-                WHERE full_name LIKE ? OR email LIKE ? OR phone LIKE ? OR notes LIKE ?
-                ORDER BY created_at DESC
-            """, (pattern, pattern, pattern, pattern)).fetchall()
+        rows = conn.execute(
+            """
+            SELECT * FROM registrations
+            WHERE full_name LIKE ?
+               OR email LIKE ?
+               OR phone LIKE ?
+               OR city LIKE ?
+               OR hospital_name LIKE ?
+               OR specialty LIKE ?
+            ORDER BY created_at DESC
+            """,
+            (pattern, pattern, pattern, pattern, pattern, pattern),
+        ).fetchall()
     else:
         rows = conn.execute("SELECT * FROM registrations ORDER BY created_at DESC").fetchall()
 
@@ -132,8 +149,9 @@ def admin_dashboard():
         rows=rows,
         total_count=total_count,
         city_count=city_count,
-        query=query
+        query=query,
     )
+
 
 @app.route("/admin/export")
 def export_csv():
@@ -141,49 +159,61 @@ def export_csv():
     query = request.args.get("q", "").strip()
     conn = get_db()
 
-    cursor = conn.cursor()
-    cursor.execute("PRAGMA table_info(registrations);")
-    cols = [c["name"] for c in cursor.fetchall()]
-
     if query:
         pattern = f"%{query}%"
-        if "city" in cols:
-            rows = conn.execute("""
-                SELECT * FROM registrations
-                WHERE full_name LIKE ? OR email LIKE ? OR phone LIKE ? OR city LIKE ? OR notes LIKE ?
-                ORDER BY created_at DESC
-            """, (pattern, pattern, pattern, pattern, pattern)).fetchall()
-        else:
-            rows = conn.execute("""
-                SELECT * FROM registrations
-                WHERE full_name LIKE ? OR email LIKE ? OR phone LIKE ? OR notes LIKE ?
-                ORDER BY created_at DESC
-            """, (pattern, pattern, pattern, pattern)).fetchall()
+        rows = conn.execute(
+            """
+            SELECT * FROM registrations
+            WHERE full_name LIKE ?
+               OR email LIKE ?
+               OR phone LIKE ?
+               OR city LIKE ?
+               OR hospital_name LIKE ?
+               OR specialty LIKE ?
+            ORDER BY created_at DESC
+            """,
+            (pattern, pattern, pattern, pattern, pattern, pattern),
+        ).fetchall()
     else:
         rows = conn.execute("SELECT * FROM registrations ORDER BY created_at DESC").fetchall()
     conn.close()
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["Reference ID", "Registration Date", "Full Name", "Email Address", "Phone", "City", "Notes"])
+    writer.writerow(
+        [
+            "Reference ID",
+            "Registration Date",
+            "Full Name",
+            "Email Address",
+            "Phone",
+            "City",
+            "Hospital Name",
+            "Specialty",
+        ]
+    )
 
     for r in rows:
-        city_val = r["city"] if "city" in r.keys() else ""
-        writer.writerow([
-            f"#REG-{r['id']:04d}",
-            r["created_at"],
-            r["full_name"],
-            r["email"],
-            r["phone"],
-            city_val,
-            r["notes"]
-        ])
+        keys = r.keys()
+        writer.writerow(
+            [
+                f"#REG-{r['id']:04d}",
+                r["created_at"],
+                r["full_name"],
+                r["email"],
+                r["phone"],
+                r["city"] if "city" in keys else "",
+                r["hospital_name"] if "hospital_name" in keys else "",
+                r["specialty"] if "specialty" in keys else "",
+            ]
+        )
 
     return Response(
         output.getvalue(),
         mimetype="text/csv",
-        headers={"Content-Disposition": "attachment; filename=event_registrations.csv"}
+        headers={"Content-Disposition": "attachment; filename=event_registrations.csv"},
     )
+
 
 @app.route("/admin/export-excel")
 def export_excel():
@@ -258,6 +288,7 @@ def export_excel():
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
+
 @app.route("/admin/delete/<int:reg_id>", methods=["POST"])
 def delete_registration(reg_id):
     """Delete an individual registration record."""
@@ -265,6 +296,7 @@ def delete_registration(reg_id):
         conn.execute("DELETE FROM registrations WHERE id = ?", (reg_id,))
     flash(f"Registration #REG-{reg_id:04d} removed successfully.", "warning")
     return redirect(url_for("admin_dashboard"))
+
 
 # -----------------------------------------------------------------------------
 # 4. Entry Point

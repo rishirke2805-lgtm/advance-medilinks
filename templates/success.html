@@ -21,6 +21,14 @@
         <span style="color: var(--slate-500);">City</span>
         <strong>{{ reg['city'] or '—' }}</strong>
       </div>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+        <span style="color: var(--slate-500);">Hospital Name</span>
+        <span>{{ reg['hospital_name'] or '—' }}</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+        <span style="color: var(--slate-500);">Specialty</span>
+        <span>{{ reg['specialty'] or '—' }}</span>
+      </div>
       <div style="display: flex; justify-content: space-between;">
         <span style="color: var(--slate-500);">Date Registered</span>
         <span>{{ reg['created_at'] }}</span>
