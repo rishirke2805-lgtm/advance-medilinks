@@ -1,15 +1,6 @@
-# Initialize database automatically on startup (required for Gunicorn/Render)
-
 import csv
 import io
 import re
-from config import Config
-from database import get_db, init_db
-
-app = Flask(__name__)
-app.config.from_object(Config)
-init_db()
-
 from datetime import datetime
 from flask import (
     Flask,
